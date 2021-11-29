@@ -1,0 +1,32 @@
+{
+  "name": "lotashinski/saml-sp-package",
+  "description": "Saml library for service-provider",
+  "type": "library",
+  "keywords": ["saml", "service-provider"],
+  "homepage": "https://github.com/Lotashinski/saml-sp-package",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Yanka Kupala State University of Grodno",
+      "email": "soft@grsu.by"
+    },
+    {
+      "name": "Alexander Lotashinsky",
+      "email": "allotashinsky@yandex.by",
+      "role": "developer"
+    }
+  ],
+  "require": {
+    "php": ">=8.0",
+    "onelogin/php-saml": "^4.0",
+    "symfony/yaml": "5.3.x",
+    "symfony/http-foundation": "5.3.x",
+    "psr/log": "^1.0.1 || 2.* || 3.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Grsu\\SamlSpService\\": "src/"
+    }
+  }
+}
