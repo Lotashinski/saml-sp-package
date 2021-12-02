@@ -14,6 +14,10 @@ interface SamlServiceInterface
      */
     public function getMetadata(): string;
 
+    public function isLogin(): bool;
+
+    public function getCurrentUser(): ?SamlUser;
+
     /**
      * @throws SamlFlowException
      */

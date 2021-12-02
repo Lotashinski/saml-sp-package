@@ -16,7 +16,8 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
 
-final class SamlService implements SamlServiceInterface
+final class SamlService
+    implements SamlServiceInterface
 {
 
     private const SSO_SESSION = 'SSO_SESSION';
@@ -349,4 +350,13 @@ final class SamlService implements SamlServiceInterface
         $this->session->remove(self::SSO_RID);
     }
 
+    public function isLogin(): bool
+    {
+        return $this->session->has(self::SSO_USER);
+    }
+
+    public function getCurrentUser(): ?SamlUser
+    {
+        return $this->session->get(self::SSO_USER);
+    }
 }
