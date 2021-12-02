@@ -20,8 +20,8 @@
   "require": {
     "php": ">=8.0",
     "onelogin/php-saml": "^4.0",
-    "symfony/yaml": "5.3.x",
-    "symfony/http-foundation": "5.3.x",
+    "symfony/yaml": "6.0.*",
+    "symfony/http-foundation": "6.0.*",
     "psr/log": "^1.0.1 || 2.* || 3.*"
   },
   "autoload": {
