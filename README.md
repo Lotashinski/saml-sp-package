@@ -110,13 +110,14 @@ services:
 
   // ...
 
-  SamlService\SamlServiceFactory:
-    tags:
-      - { name: monolog.logger, channel: SamlService } # Configure logger configure channel
-  SamlService\SamlServiceInterface:
-    factory: '@SamlService\SamlServiceFactory'
+  Grsu\SamlSpService\SamlServiceFactory:
     arguments:
-      $configFilePath: '%kernel.project_dir%/config/sso_saml.yaml' # Path to config
+      $configFilePath: '%kernel.project_dir%/config/service/sso_saml.yaml'
+    tags:
+      - { name: monolog.logger, channel: SamlService }
+
+  Grsu\SamlSpService\SamlServiceInterface:
+    factory: [ '@Grsu\SamlSpService\SamlServiceFactory', 'createServiceFromConfigFile' ]
 ```
 
 Code example:
