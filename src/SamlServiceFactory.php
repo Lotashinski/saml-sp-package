@@ -15,8 +15,10 @@ final class SamlServiceFactory
 
     private LoggerInterface $logger;
     private SessionInterface $session;
+    private ?SamlServiceInterface $samlService;
     private string $configFilePath;
 
+    
     public function __construct(
         LoggerInterface $logger,
         RequestStack    $requestStack,
@@ -51,7 +53,10 @@ final class SamlServiceFactory
         $this->logger->debug('Load session');
 
         try {
-            return new SamlService($settings, $this->session, $this->logger);
+            if ($this->samlService === null) {
+                $this->samlService = new SamlService($settings, $this->session, $this->logger);
+            }
+            return $this->samlService;
         } catch (SamlConfigException | ProviderSettingsException $configException) {
             $message = "Configure sso package fail from $this->configFilePath fail. Check configs.";
             $this->logger->error($message);
