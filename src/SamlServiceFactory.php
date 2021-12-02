@@ -16,16 +16,16 @@ final class SamlServiceFactory
     private LoggerInterface $logger;
     private SessionInterface $session;
     private ?SamlServiceInterface $samlService = null;
-    private string $configFilePath;
+    private string|array $configOrPath;
 
 
     public function __construct(
         LoggerInterface $logger,
         RequestStack    $requestStack,
-        string          $configFilePath
+        string|array    $configOrPath
     )
     {
-        $this->configFilePath = $configFilePath;
+        $this->configOrPath = $configOrPath;
         $this->logger = $logger;
         $this->session = $requestStack->getSession();
     }
@@ -47,8 +47,18 @@ final class SamlServiceFactory
      */
     public function createServiceFromConfigFile(): SamlServiceInterface
     {
-        $this->logger->debug('Load saml config from yaml');
-        $settings = $this->loadConfigFromFile($this->configFilePath);
+        /**
+         * @var array
+         */
+        $settings = [];
+
+        if (is_array($this->configOrPath)) {
+            $this->logger->debug('Load saml config from array');
+            $settings = $this->configOrPath;
+        } else {
+            $this->logger->debug('Load saml config from file');
+            $settings = $this->loadConfigFromFile($this->configOrPath);
+        }
 
         $this->logger->debug('Load session');
 
@@ -58,12 +68,11 @@ final class SamlServiceFactory
             }
             return $this->samlService;
         } catch (SamlConfigException | ProviderSettingsException $configException) {
-            $message = "Configure sso package fail from $this->configFilePath fail. Check configs.";
+            $message = "Configure sso package fail from $this->configOrPath fail. Check configs.";
             $this->logger->error($message);
             throw $configException;
         }
     }
-
 
     private function loadConfigFromFile(string $path): array
     {
