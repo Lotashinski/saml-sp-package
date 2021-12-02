@@ -112,7 +112,7 @@ services:
 
   Grsu\SamlSpService\SamlServiceFactory:
     arguments:
-      $configFilePath: '%kernel.project_dir%/config/service/sso_saml.yaml'
+      $configOrPath: '%kernel.project_dir%/config/service/sso_saml.yaml'
     tags:
       - { name: monolog.logger, channel: SamlService }
 
