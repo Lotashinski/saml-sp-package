@@ -15,10 +15,10 @@ final class SamlServiceFactory
 
     private LoggerInterface $logger;
     private SessionInterface $session;
-    private ?SamlServiceInterface $samlService;
+    private ?SamlServiceInterface $samlService = null;
     private string $configFilePath;
 
-    
+
     public function __construct(
         LoggerInterface $logger,
         RequestStack    $requestStack,
