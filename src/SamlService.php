@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Grsu\SamlSpService;
 
@@ -15,9 +16,7 @@ use OneLogin\Saml2\ValidationError;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
-
-final class SamlService
-    implements SamlServiceInterface
+final class SamlService implements SamlServiceInterface
 {
 
     private const SSO_SESSION = 'SSO_SESSION';
@@ -28,36 +27,31 @@ final class SamlService
     private array $packageSettings;
     private SamlSettings $samlSetting;
     private SamlAuth $auth;
-    private SessionInterface $session;
-    private LoggerInterface $logger;
 
 
     /**
      * @throws SamlConfigException|ProviderSettingsException
      */
     public function __construct(
-        array            $settings,
-        SessionInterface $session,
-        LoggerInterface  $logger
+        array                    $settings,
+        private StorageInterface $storage,
+        private ?LoggerInterface $logger = null,
     )
     {
-        $this->logger = $logger;
         $this->setPackageSettingsOrThrowIfError($settings);
 
         try {
             $this->auth = new SamlAuth($settings['providers_setting']);
             $this->samlSetting = $this->auth->getSettings();
         } catch (SamlError $se) {
-            $this->logger->error("Any settings parameter is invalid. Check 'providers_setting'.");
-            $this->logger->error($se->getMessage());
+            $this->logger?->error("Any settings parameter is invalid. Check 'providers_setting'.");
+            $this->logger?->error($se->getMessage());
             throw new ProviderSettingsException("Initialization exception.", $se);
         } catch (Exception $e) {
-            $this->logger->error("Settings is incorrectly supplied. Check 'providers_setting'.");
-            $this->logger->error($e->getMessage());
+            $this->logger?->error("Settings is incorrectly supplied. Check 'providers_setting'.");
+            $this->logger?->error($e->getMessage());
             throw new SamlConfigException("Invalid setting data. Check 'providers_setting'.",);
         }
-
-        $this->session = $session;
     }
 
     /**
@@ -66,12 +60,12 @@ final class SamlService
     public function getMetadata(): string
     {
         try {
-            $this->logger->debug("Configure metadata");
+            $this->logger?->debug("Configure metadata");
             $meta = $this->samlSetting->getSPMetadata(false, $this->packageSettings['valid_until']);
             $errors = $this->samlSetting->validateMetadata($meta);
             if ($errors) {
                 $message = 'Invalid SP metadata: ' . implode(', ', $errors);
-                $this->logger->error($message);
+                $this->logger?->error($message);
                 throw new InvalidServiceProviderMetadataException($message);
             }
             return $meta;
@@ -88,7 +82,7 @@ final class SamlService
      */
     public function createLoginFlowAndReturnRedirectUrl(): string
     {
-        $this->logger->debug("Create login flow.");
+        $this->logger?->debug("Create login flow.");
 
         try {
             $ssoLoginUrl = $this->auth->login(null, [], false, false, true);
@@ -97,7 +91,7 @@ final class SamlService
             return $ssoLoginUrl;
         } catch (SamlError $se) {
             $message = 'Internal package exception';
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlFlowException($message, $se);
         }
     }
@@ -109,25 +103,25 @@ final class SamlService
      */
     public function completeLoginFlow(): SamlUser
     {
-        $this->logger->debug("Complete login flow.");
+        $this->logger?->debug("Complete login flow.");
 
         $requestId = $this->getRequestIdOrThrow();
         try {
             $this->auth->processResponse($requestId);
         } catch (SamlError $se) {
             $message = 'Internal package exception.';
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlFlowException($message, $se);
         } catch (ValidationError $e) {
             $message = 'Response validation error.';
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new InvalidSamlResponseException($message, $e);
         }
 
         $errors = $this->auth->getErrors();
         if (!empty($errors)) {
             $message = 'Invalid SamlResponse: ' . implode(', ', $errors);
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new InvalidSamlResponseException($message);
         }
 
@@ -135,7 +129,7 @@ final class SamlService
 
         if (!$this->auth->isAuthenticated()) {
             $message = 'User is not authenticated';
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlFlowException($message);
         }
 
@@ -169,11 +163,11 @@ final class SamlService
      */
     private function setPackageSettingsOrThrowIfError(array $settings)
     {
-        $this->logger->debug("Check settings");
+        $this->logger?->debug("Check settings");
 
         if (!isset($settings['response'])) {
             $message = "Invalid setting data! Block 'response' missing.";
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlConfigException($message);
         }
 
@@ -183,7 +177,7 @@ final class SamlService
         if ($diff) {
             $missing = implode(', ', $diff);
             $message = "Settings error! The following parameters are missing in the block 'response': $missing";
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlConfigException($message);
         }
 
@@ -193,7 +187,7 @@ final class SamlService
 
         if (!is_int($settings['valid_until'])) {
             $message = "Invalid setting data. 'valid_until is " . gettype($settings['valid_until']) . ". But int expired.";
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlConfigException($message);
         }
 
@@ -203,12 +197,12 @@ final class SamlService
 
         $this->packageSettings = $settings;
 
-        $this->logger->debug("Settings ok");
+        $this->logger?->debug("Settings ok");
     }
 
     private function setRequestId(string $requestIdentified): void
     {
-        $this->session->set(self::SSO_RID, $requestIdentified);
+        $this->storage->set(self::SSO_RID, $requestIdentified);
     }
 
     /**
@@ -216,18 +210,18 @@ final class SamlService
      */
     private function getRequestIdOrThrow(): string
     {
-        return $this->session->get(self::SSO_RID) ?? throw new SamlFlowException('Current session id is empty');
+        return $this->storage->get(self::SSO_RID) ?? throw new SamlFlowException('Current session id is empty');
     }
 
     private function purgeRequestId(): void
     {
-        $this->session->remove(self::SSO_RID);
+        $this->storage->remove(self::SSO_RID);
     }
 
     private function setSessionData(SamlSession $samlSession, SamlUser $samlUser): void
     {
-        $this->session->set(self::SSO_SESSION, $samlSession);
-        $this->session->set(self::SSO_USER, $samlUser);
+        $this->storage->set(self::SSO_SESSION, $samlSession);
+        $this->storage->set(self::SSO_USER, $samlUser);
     }
 
     private function parseSamlSessionFromResponse(): SamlSession
@@ -256,19 +250,19 @@ final class SamlService
 
         if (!isset($userData[$responseSettings['user_uid']])) {
             $message = "'${$responseSettings['user_uid']}' missing in IdP response or 'settings.response' invalid";
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new InvalidSamlResponseException($message);
         }
 
         if (!isset($userData[$responseSettings['user_login']])) {
             $message = "'${$responseSettings['user_login']}' missing in IdP response or 'settings.response' invalid";
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new InvalidSamlResponseException($message);
         }
 
         if (!isset($userData[$responseSettings['user_email']])) {
             $message = "'${$responseSettings['user_email']}' missing in IdP response or 'settings.response' invalid";
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new InvalidSamlResponseException($message);
         }
 
@@ -290,13 +284,13 @@ final class SamlService
      */
     private function initLogoutFlow()
     {
-        $this->logger->debug("Init logout flow.");
+        $this->logger?->debug("Init logout flow.");
 
         try {
             $this->auth->logout();
         } catch (SamlError $se) {
             $message = 'Error in initialization logout flow';
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlFlowException($message, $se);
         }
     }
@@ -307,7 +301,7 @@ final class SamlService
      */
     private function commitLogoutRequestFlow(): void
     {
-        $this->logger->debug("Commit logout flow from IdP.");
+        $this->logger?->debug("Commit logout flow from IdP.");
         $this->purgeSamlData();
         $this->initProcessSlo();
     }
@@ -317,7 +311,7 @@ final class SamlService
      */
     private function commitLogoutResponseFlow(): void
     {
-        $this->logger->debug("Commit logout flow from User.");
+        $this->logger?->debug("Commit logout flow from User.");
         $this->initProcessSlo();
         $this->purgeSamlData();
     }
@@ -328,35 +322,35 @@ final class SamlService
     private function initProcessSlo(): void
     {
         try {
-            $this->logger->debug("Saml process SLO...");
+            $this->logger?->debug("Saml process SLO...");
             $this->auth->processSLO();
-            $this->logger->debug("Check errors...");
+            $this->logger?->debug("Check errors...");
             $errors = $this->auth->getErrors();
             if (!empty($errors)) {
                 throw new SamlError('Logout flow error: ' . implode(', ', $errors));
             }
         } catch (SamlError $se) {
             $message = "SLO error. " . $se->getMessage();
-            $this->logger->error($message);
+            $this->logger?->error($message);
             throw new SamlFlowException($message, $se);
         }
     }
 
     private function purgeSamlData()
     {
-        $this->logger->debug('Remove user sso session from app session storage');
-        $this->session->remove(self::SSO_USER);
-        $this->session->remove(self::SSO_SESSION);
-        $this->session->remove(self::SSO_RID);
+        $this->logger?->debug('Remove user sso session from app session storage');
+        $this->storage->remove(self::SSO_USER);
+        $this->storage->remove(self::SSO_SESSION);
+        $this->storage->remove(self::SSO_RID);
     }
 
     public function isLogin(): bool
     {
-        return $this->session->has(self::SSO_USER);
+        return $this->storage->has(self::SSO_USER);
     }
 
     public function getCurrentUser(): ?SamlUser
     {
-        return $this->session->get(self::SSO_USER);
+        return $this->storage->get(self::SSO_USER);
     }
 }

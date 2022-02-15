@@ -1,33 +1,25 @@
 <?php
+declare(strict_types=1);
 
 namespace Grsu\SamlSpService;
 
 use Grsu\SamlSpService\Exception\ProviderSettingsException;
 use Grsu\SamlSpService\Exception\SamlConfigException;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Yaml\Yaml;
 
 
 final class SamlServiceFactory
 {
-
-    private LoggerInterface $logger;
-    private SessionInterface $session;
     private ?SamlServiceInterface $samlService = null;
-    private string|array $configOrPath;
 
 
     public function __construct(
-        LoggerInterface $logger,
-        RequestStack    $requestStack,
-        string|array    $configOrPath
+        private LoggerInterface   $logger,
+        private string|array      $configOrPath,
+        private ?StorageInterface $storage,
     )
     {
-        $this->configOrPath = $configOrPath;
-        $this->logger = $logger;
-        $this->session = $requestStack->getSession();
     }
 
 
@@ -47,9 +39,6 @@ final class SamlServiceFactory
      */
     public function createServiceFromConfigFile(): SamlServiceInterface
     {
-        /**
-         * @var array
-         */
         $settings = [];
 
         if (is_array($this->configOrPath)) {
@@ -64,10 +53,10 @@ final class SamlServiceFactory
 
         try {
             if ($this->samlService === null) {
-                $this->samlService = new SamlService($settings, $this->session, $this->logger);
+                $this->samlService = new SamlService($settings, $this->storage, $this->logger);
             }
             return $this->samlService;
-        } catch (SamlConfigException | ProviderSettingsException $configException) {
+        } catch (SamlConfigException|ProviderSettingsException $configException) {
             $message = "Configure sso package fail from $this->configOrPath fail. Check configs.";
             $this->logger->error($message);
             throw $configException;
@@ -79,5 +68,4 @@ final class SamlServiceFactory
         $this->logger->debug('Read settings from yaml');
         return Yaml::parseFile($path);
     }
-
 }
